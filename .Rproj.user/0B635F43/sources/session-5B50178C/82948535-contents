@@ -1,0 +1,41 @@
+---
+title: "Advent of Code - Day 01"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Instructions
+
+-   [Which Elve has the most calories?](https://adventofcode.com/2022/day/1)
+
+-   Given a list of integer vectors, find the vector with the greatest sum.
+
+## Dependencies
+
+```{r}
+if(!"pacman" %in% installed.packages()) install.packages("pacman")
+pacman::p_load(tidyverse, here)
+```
+
+## Load Data
+
+```{r}
+calories_raw <- readChar(con = here("data", "01.csv"), 
+                         nchars = file.info(here("data", "01.csv"))$size)
+```
+
+## Wrangle Data
+
+```{r}
+calories_max <- calories_raw %>% 
+  str_split("\n\n") %>%
+  unlist() %>% 
+  str_split("\n") %>% 
+  map(~ as.integer(.x) %>% sum()) %>% 
+  unlist() %>% 
+  max()
+
+calories_max
+```
