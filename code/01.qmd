@@ -8,9 +8,13 @@ editor_options:
 
 ## Instructions
 
--   [Which Elve has the most calories?](https://adventofcode.com/2022/day/1)
+-   [Which Elves have the most calories?](https://adventofcode.com/2022/day/1)
 
--   Given a list of integer vectors, find the vector with the greatest sum.
+-   Given a list of integer vectors,
+
+    -   ...find the vector with the greatest sum and return it's sum.
+
+    -   ...find the three greatest vectors and return their sum.
 
 ## Dependencies
 
@@ -22,6 +26,7 @@ pacman::p_load(tidyverse, here)
 ## Load Data
 
 ```{r}
+# Import data as string
 calories_raw <- readChar(con = here("data", "01.csv"), 
                          nchars = file.info(here("data", "01.csv"))$size)
 ```
@@ -30,12 +35,21 @@ calories_raw <- readChar(con = here("data", "01.csv"),
 
 ```{r}
 calories_max <- calories_raw %>% 
+  # Split string on double paragraphs, return string vector
   str_split("\n\n") %>%
   unlist() %>% 
+  # Split vector on paragraphs, return list of vectors (one vector per elf)
   str_split("\n") %>% 
+  # Turn every string vector into integer vector and return sum
   map(~ as.integer(.x) %>% sum()) %>% 
   unlist() %>% 
-  max()
+  # Sort in descending order
+  sort() %>% 
+  rev()
 
-calories_max
+# Print sum of top elf
+calories_max[1]
+
+# Print sum of top three elves
+sum(calories_max[1:3])
 ```
