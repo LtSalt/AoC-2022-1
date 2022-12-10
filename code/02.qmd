@@ -1,0 +1,101 @@
+---
+title: "Advent of Code 2022 - Day 02"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Instructions
+
+Given a set of rules for a special rock-paper-scissors-game [find your total score](https://adventofcode.com/2022/day/2)
+
+-   given a table of your choices.
+
+```{=html}
+<!-- -->
+```
+-   given a table of your outcomes.
+
+## Dependencies
+
+```{r}
+if(!"pacman" %in% installed.packages()) install.packages("pacman")
+pacman::p_load(tidyverse, here)
+```
+
+## Load Data
+
+```{r}
+gameplay <- read.table(file = here("data", "02.txt"),
+           sep = " ",
+           col.names = c("player_01", "player_02")) %>% 
+  as_tibble()
+```
+
+## Rules
+
+| Player 1 | Player 2 | Points |
+|----------|----------|--------|
+| A        | X        | 3      |
+|          | Y        | 6      |
+|          | Z        | 0      |
+| B        | X        | 0      |
+|          | Y        | 3      |
+|          | Z        | 6      |
+| C        | X        | 6      |
+|          | Y        | 0      |
+|          | Z        | 3      |
+
+## With a given choice
+
+```{r}
+gameplay_scores <- gameplay %>% 
+  mutate(shape = case_when(player_02 == "X" ~ 1,
+                           player_02 == "Y" ~ 2,
+                           player_02 == "Z" ~ 3),
+         outcome = case_when(player_01 == "A" & player_02 == "Z" |
+                             player_01 == "B" & player_02 == "X" |
+                             player_01 == "C" & player_02 == "Y" ~ 0,
+                           
+                             player_01 == "A" & player_02 == "X" |
+                             player_01 == "B" & player_02 == "Y" |
+                             player_01 == "C" & player_02 == "Z" ~ 3,
+                             
+                             player_01 == "A" & player_02 == "Y" |
+                             player_01 == "B" & player_02 == "Z" |
+                             player_01 == "C" & player_02 == "X" ~ 6,
+                             ),
+         score = shape + outcome)
+
+gameplay_scores %>% 
+  summarise(score_total = sum(score))
+```
+
+## With a given outcome
+
+```{r}
+gameplay_scores_2 <- gameplay %>% 
+  rename(outcome = player_02) %>% 
+  mutate(player_02 = case_when(player_01 == "A" & outcome == "Y" |
+                           player_01 == "B" & outcome == "X" |
+                           player_01 == "C" & outcome == "Z" ~ "A",
+                         
+                           player_01 == "A" & outcome == "Z" |
+                           player_01 == "B" & outcome == "Y" |
+                           player_01 == "C" & outcome == "X" ~ "B",
+                           
+                           player_01 == "A" & outcome == "X" |
+                           player_01 == "B" & outcome == "Z" |
+                           player_01 == "C" & outcome == "Y" ~ "C"),
+         shape = case_when(player_02 == "A" ~ 1,
+                           player_02 == "B" ~ 2,
+                           player_02 == "C" ~ 3),
+         outcome_score = case_when(outcome == "X" ~ 0,
+                             outcome == "Y" ~ 3,
+                             outcome == "Z" ~ 6),
+         score = shape + outcome_score)
+
+gameplay_scores_2 %>% 
+  summarise(sum(score))
+```
