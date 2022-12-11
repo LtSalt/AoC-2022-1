@@ -1,0 +1,77 @@
+---
+title: "Advent of Code - Day 04"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Instructions
+
+Given a list of paired integer vector,
+
+-   find those pairs where one vector is fully contained within the other.
+
+-   find those pairs that partially match each other.
+
+[Reference](https://adventofcode.com/2022/day/4)
+
+## Dependencies
+
+```{r}
+if(!"pacman" %in% installed.packages()) install.packages("pacman")
+pacman::p_load(tidyverse, here)
+```
+
+## Load Data
+
+```{r}
+pairs <- read_csv(here("data", "04.txt"),
+         col_names = c("elf_1", "elf_2"))
+```
+
+## Wrangle Data
+
+-   convert "range" strings to integer vectors
+
+-   find pairs where one vector is a subset of the other
+
+-   return number of all pairs that meet this condition
+
+```{r}
+# helper function: parse string as integer vector
+get_range <- function(x) {
+  # split every element of character vector at "-", return list of character vectors
+  limits <- str_split(x, "-")
+  # for each vector in list, return integer vector ranging from first to last element in vector
+  range <- map(limits, ~ seq(`[[`(.x, 1), `[[`(.x, 2)))
+  return(range)
+}
+
+# NUMBER OF SUBSETS
+contained <- pairs %>% 
+  mutate(
+    # apply helper function to every variable in df (elf_1 and elf_2)
+    across(everything(), get_range),
+    # for every row, check if one vector is a subset of the other
+    contained = map2_lgl(elf_1, elf_2, 
+                         ~ all(.x %in% .y) | all(.y %in% .x))
+    )
+
+# return number of rows that meet condition
+contained %>% 
+  summarise(contained_sum = sum(contained))
+
+
+# NUMBER OF PARTIAL MATCHES
+partials <- pairs %>% 
+  mutate(
+    across(everything(), get_range),
+    # for every pair of integer vec
+    partial_match = map2_lgl(elf_1, elf_2,
+                             ~ any(.x %in% .y) | any(.y %in% .x))
+  )
+
+partials %>% 
+  summarise(partial_matches_sum = sum(partial_match))
+```
