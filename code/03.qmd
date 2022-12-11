@@ -58,14 +58,8 @@ left_join(backpacks_duplicates, valences, by = c("in_both" = "letter")) %>%
 ## Instructions (2)
 
 -   turn the string vector into a list of string vectors, each of length 3
-
-```{=html}
-<!-- -->
-```
 -   find the one common letter in every vector
-
 -   sum the values of all common letters as above
-
 -   [Reference](https://adventofcode.com/2022/day/3#part2)
 
 ## Wrangle Data (2)
