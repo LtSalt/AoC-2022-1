@@ -1,0 +1,88 @@
+---
+title: "Advent of Code 2022 - Day 03"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Instructions (1)
+
+Given a string vector
+
+-   separate each item the middle, each subitem being equally long
+
+-   for every item, identify letters that appear in both subitems
+
+-   given a valence table, sum the values of all duplicate letters in the given vector
+
+-   [Reference](https://adventofcode.com/2022/day/3)
+
+## Dependencies
+
+```{r}
+if(!"pacman" %in% installed.packages()) install.packages("pacman")
+pacman::p_load(tidyverse, here)
+```
+
+## Load Data
+
+```{r}
+backpacks <- read_csv(here("data", "03.txt"),
+         col_names = "backpack")
+```
+
+## Wrangle Data
+
+```{r}
+backpacks_duplicates <- backpacks %>% 
+  mutate(
+    # Split every row in two elements
+    section_1 = str_sub(backpack, 1, nchar(backpack) / 2),
+    section_2 = str_sub(backpack, nchar(backpack) / 2 + 1, -1),
+    # Split each element into vector of letters and find intersection
+    in_both = map2_chr(str_split(section_1, ""),
+                        str_split(section_2, ""), 
+                        intersect)) %>% 
+  select(in_both)
+
+# create valence table
+valences <- tibble(letter = c(letters, LETTERS)) %>% 
+  mutate(value = row_number())
+
+# left join common elements with values and sum values
+left_join(backpacks_duplicates, valences, by = c("in_both" = "letter")) %>% 
+  summarise(sum = sum(value))
+```
+
+## Instructions (2)
+
+-   turn the string vector into a list of string vectors, each of length 3
+
+```{=html}
+<!-- -->
+```
+-   find the one common letter in every vector
+
+-   sum the values of all common letters as above
+
+-   [Reference](https://adventofcode.com/2022/day/3#part2)
+
+## Wrangle Data (2)
+
+```{r}
+badges <- backpacks %>% 
+  mutate(
+    # split each element into vector of letters for easy iteration
+    backpack = str_split(backpack, ""),
+    # divide index by 3 and round up to get groups of three
+    group = ceiling(row_number() / 3)) %>% 
+  group_by(group) %>% 
+  # use purrr:reduce to find intersection of all three vectors per group
+  summarise(badge = reduce(backpack, intersect)) %>% 
+  ungroup()
+
+# left join with valence table and sum values
+left_join(badges, valences, by = c("badge" = "letter")) %>% 
+  summarise(badges_sum = sum(value))
+```
