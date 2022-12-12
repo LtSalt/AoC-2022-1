@@ -51,8 +51,6 @@ buffer %>%
                                    TRUE,
                                    FALSE),
          row_index = row_number()) %>%
-  # slice(1220:1240) %>% 
-  # pull(character) %>% paste(collapse = "")
   filter(four_uniques_end) # first value: 1235
 ```
 
