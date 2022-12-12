@@ -73,4 +73,27 @@ result %>%
 
 ## Instructions (2)
 
+As above, but not in reverse order
+
 [Reference](https://adventofcode.com/2022/day/5#part2)
+
+```{r}
+move_crates_2 <- function(some_list, move, from, to) {
+  crates <- some_list[[from]] %>% tail(move)
+  some_list[[from]] <- some_list[[from]] %>% head(length(some_list[[from]]) - move)
+  # append elements as is
+  some_list[[to]] <- append(some_list[[to]], crates)
+  return(some_list)
+}
+
+result <- stacks
+for(i in seq_along(1:nrow(steps))) {
+  result <<- move_crates_2(result, 
+                         steps$move[i],
+                         steps$from[i],
+                         steps$to[i])
+}
+
+result %>% 
+  map_chr(~tail(.x, 1)) %>% paste(collapse = "")
+```
