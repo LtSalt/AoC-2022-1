@@ -1,0 +1,76 @@
+---
+title: "Advent of Code 2022 - Day 05"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Instructions (1)
+
+Given a list of string vectors and list of instructions (move x items from y to z)
+
+-   remove subset from source vector
+
+-   append same subset to target vector (in reverse order)
+
+-   iterate x times, each time taking the modified list as input
+
+-   [Reference](https://adventofcode.com/2022/day/5)
+
+## Dependencies
+
+```{r}
+if(!"pacman" %in% installed.packages()) install.packages("pacman")
+pacman::p_load(tidyverse, here)
+```
+
+## Parse Data
+
+```{r}
+stacks <- read.fwf(here("data", "05-stacks.txt"),
+         widths = rep(4, 9)) %>% 
+  mutate(across(everything(), ~ str_extract(.x, "[A-Z]") %>% rev())) %>% 
+  as.list() %>% 
+  map(~ `[`(.x, !is.na(.x)))
+
+steps <- read_delim(here("data", "05-steps.txt"),
+           col_names = FALSE) %>% 
+  select(X2, X4, X6) %>% 
+  rename_with(~ c("move", "from", "to"))
+```
+
+## Wrangle Data
+
+```{r}
+# helper function to move crates
+move_crates <- function(some_list, move, from, to) {
+  # get elements to be removed / appended
+  crates <- some_list[[from]] %>% tail(move)
+  # remove elements from source
+  some_list[[from]] <- some_list[[from]] %>% head(length(some_list[[from]]) - move)
+  # append elements to target (in reverse order)
+  some_list[[to]] <- append(some_list[[to]], rev(crates))
+  # return modified list
+  return(some_list)
+}
+
+# implementation using a for loop
+result <- stacks
+for(i in seq_along(1:nrow(steps))) {
+  result <<- move_crates(result, 
+                         steps$move[i],
+                         steps$from[i],
+                         steps$to[i])
+}
+
+# TODO implementation using reduce?
+
+# get last element of each vector 
+result %>% 
+  map_chr(~tail(.x, 1)) %>% paste(collapse = "")
+```
+
+## Instructions (2)
+
+[Reference](https://adventofcode.com/2022/day/5#part2)
