@@ -1,0 +1,87 @@
+---
+title: "Advent of Code 2022 - Day 06"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Instructions
+
+-   within a given string, find the first four-letter-substring containing four distinct letters and return the position of the last letter
+
+-   as above, but with a 14-letter-substring containing only distinct letters
+
+-   Reference: [Part 1](https://adventofcode.com/2022/day/6) and [part 2](https://adventofcode.com/2022/day/6#part2)
+
+```{r}
+if(!"pacman" %in% installed.packages()) install.packages("pacman")
+pacman::p_load(tidyverse, here)
+```
+
+## Parse Data
+
+```{r}
+buffer <- readChar(here("data", "06.txt"),
+         nchars = file.info(here("data", "06.txt"))$size)
+```
+
+## Wrangle Data
+
+Unelegant: computing `lead` and `lag` values. Does not scale well.
+
+```{r}
+buffer %>% 
+  str_split("") %>%
+  unlist %>% 
+  tibble() %>% 
+  rename(character = 1) %>% 
+  mutate(lag_different = ifelse(character != lag(character),
+                                TRUE,
+                                FALSE),
+         lag_2_different = ifelse(character != lag(character, 2),
+                                TRUE,
+                                FALSE),
+         lag_3_different = ifelse(character != lag(character, 3),
+                                TRUE,
+                                FALSE),
+         four_uniques_end = ifelse(lag_different & lag_2_different & lag_3_different &
+                                   lag(lag_different) & lag(lag_2_different) &
+                                   lag(lag_different, 2),
+                                   TRUE,
+                                   FALSE),
+         row_index = row_number()) %>%
+  # slice(1220:1240) %>% 
+  # pull(character) %>% paste(collapse = "")
+  filter(four_uniques_end) # first value: 1235
+```
+
+With a regex:
+
+-   4 distinct letters
+
+```{r}
+buffer %>% 
+  str_locate("(\\w)(?!\\1)(\\w)(?!\\1|\\2)(\\w)(?!\\1|\\2|\\3)(\\w)") # end: 1235
+```
+
+-   14 distinct letters
+
+```{r}
+n_unique <- function(n) {
+  if(n == 1) return("(\\w)(?!\\1)")
+  
+  make_regex <- function(out, input) paste0(out,"(?!\\", input, ")")
+  
+  regex <- accumulate(seq(2, n - 1), make_regex,.init = "(\\w)(?!\\1)") %>% 
+    paste0("(\\w)") %>% 
+    paste0(collapse = "")
+  
+  return(regex)
+}
+
+n_unique(4) # "(\\w)(?!\\1)(\\w)(?!\\1|\\2)(\\w)(?!\\1|\\2|\\3)(\\w)"
+
+buffer %>% 
+  str_locate(n_unique(14))
+```
