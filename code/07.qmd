@@ -1,0 +1,112 @@
+---
+title: "Advent of Code 2022 - Day 07"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Instructions
+
+-   Given a file tree and given file sizes,
+
+    -   find all directories that have a size of 10000 or greater and sum their sizes
+
+## Dependencies
+
+```{r}
+if(!"pacman" %in% installed.packages()) install.packages("pacman")
+pacman::p_load(tidyverse, here)
+```
+
+## Parse Data
+
+```{r}
+prompt <- read_csv(here("data", "07.txt"),
+         col_names = "prompt")
+
+prompt %>% print(n = 20)
+```
+
+## Wrangle Data
+
+-   find all directories
+
+-   list their content
+
+-   sum file sizes (recursively?)
+
+-   create virtual environment and hack dir()/ls()?
+
+```{r}
+# create function to get absolute paths
+get_absolute_paths <- function(relative_paths) {
+  
+  # helper function: get one absolute path from two relative paths 
+  absolute_path <- function(out, input) {
+    # if path 2 is na, return first path (no change)
+    if(is.na(input)) return(out)
+    # if path 2 is "..", return shortened absolute path
+    if(input == "..") return(str_extract(out, ".+(?=\\/\\w+$)"))
+    # paste path 1 and 2
+    paste(out, input, sep = "/")
+  }
+  
+  # accumulate absolute paths from relative paths
+  accumulate(relative_paths, absolute_path)
+}
+
+directories <- prompt %>% 
+  #remove redundant info
+  filter(prompt != "$ ls") %>% 
+  # extract current directories
+  extract(col = prompt, 
+          into = c("dir"), 
+          regex = "((?<=cd ).*)",
+          remove = FALSE) %>% 
+  # get absolute paths
+  mutate(dir = get_absolute_paths(dir)) %>% 
+  # remove directory changes (info now redundant)
+  filter(!str_detect(prompt, "cd")) %>% 
+  # group by directories and nest prompts in "content" list column
+  group_by(dir) %>% 
+  summarise(content = list(prompt[1:n()])) %>%
+  # extract list of subdirectories and list of files from content, ...
+  mutate(subdirs = str_extract_all(content, "((?<=dir )\\w+)"),
+         size_direct = str_extract_all(content, "([0-9]+)") %>% 
+           # ...sum "direct" file sizes...
+           map_int(~ as.integer(.x) %>% sum()),
+         
+         # and glue current directory to subdirectories
+         subdirs = map2(dir, subdirs, function(x, y) {
+           if(length(unlist(y)) == 0) return(y)
+           paste(x, y, sep = "/")
+           }))
+  
+view(directories)
+```
+
+```{r}
+# create function to get filesize
+get_filesize <- function(directory, directories) {
+  # filter row
+  info <- directories %>% filter(dir == directory)
+  # "direct" size
+  direct <- info$size_direct[[1]]
+  # if no subdirectories present, return "direct" size
+  if(length(unlist(info$subdirs)) == 0) return(direct)
+  # otherwise, apply function recursively to every subdir, each time summing with direct size
+  sum(direct, map_int(unlist(info$subdirs), ~ get_filesize(.x, directories)))
+}
+
+map(directories$dir %>% head(2), ~ get_filesize(.x, directories)) # first two does not work?!
+map(directories$dir %>% tail(187), ~ get_filesize(.x, directories)) %>% 
+  unlist() %>% 
+  as_tibble() %>% 
+  filter(value <= 100000) %>% 
+  summarise(sum = sum(value))
+```
+
+## Concepts
+
+reduce / accumulate and recursion
