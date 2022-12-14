@@ -30,14 +30,6 @@ prompt %>% print(n = 20)
 
 ## Wrangle Data
 
--   find all directories
-
--   list their content
-
--   sum file sizes (recursively?)
-
--   create virtual environment and hack dir()/ls()?
-
 ```{r}
 # create function to get absolute paths
 get_absolute_paths <- function(relative_paths) {
@@ -59,54 +51,83 @@ get_absolute_paths <- function(relative_paths) {
 directories <- prompt %>% 
   #remove redundant info
   filter(prompt != "$ ls") %>% 
-  # extract current directories
+  # extract current directory per command
   extract(col = prompt, 
           into = c("dir"), 
           regex = "((?<=cd ).*)",
           remove = FALSE) %>% 
   # get absolute paths
-  mutate(dir = get_absolute_paths(dir)) %>% 
+  mutate(dir = get_absolute_paths(dir)) %>%
   # remove directory changes (info now redundant)
-  filter(!str_detect(prompt, "cd")) %>% 
+  filter(!str_detect(prompt, "\\$ cd")) %>% 
   # group by directories and nest prompts in "content" list column
   group_by(dir) %>% 
   summarise(content = list(prompt[1:n()])) %>%
-  # extract list of subdirectories and list of files from content, ...
+  # extract subdirectories and files from content, ...
   mutate(subdirs = str_extract_all(content, "((?<=dir )\\w+)"),
          size_direct = str_extract_all(content, "([0-9]+)") %>% 
            # ...sum "direct" file sizes...
            map_int(~ as.integer(.x) %>% sum()),
-         
          # and glue current directory to subdirectories
          subdirs = map2(dir, subdirs, function(x, y) {
            if(length(unlist(y)) == 0) return(y)
            paste(x, y, sep = "/")
-           }))
+           })) %>% 
+  select(-content)
   
-view(directories)
+directories
 ```
+
+## Compute Directory Sizes
 
 ```{r}
 # create function to get filesize
 get_filesize <- function(directory, directories) {
   # filter row
-  info <- directories %>% filter(dir == directory)
+  subdirs <- directories %>% filter(dir == directory) %>% pull("subdirs") %>% unlist()
   # "direct" size
-  direct <- info$size_direct[[1]]
+  direct <- directories %>% filter(dir == directory) %>% pull(size_direct)
   # if no subdirectories present, return "direct" size
-  if(length(unlist(info$subdirs)) == 0) return(direct)
+  if(length(subdirs) == 0) return(direct)
   # otherwise, apply function recursively to every subdir, each time summing with direct size
-  sum(direct, map_int(unlist(info$subdirs), ~ get_filesize(.x, directories)))
+  sum(direct, map_int(subdirs, ~ get_filesize(.x, directories)))
 }
 
-map(directories$dir %>% head(2), ~ get_filesize(.x, directories)) # first two does not work?!
-map(directories$dir %>% tail(187), ~ get_filesize(.x, directories)) %>% 
-  unlist() %>% 
-  as_tibble() %>% 
-  filter(value <= 100000) %>% 
-  summarise(sum = sum(value))
+directories <- directories %>% 
+  mutate(size = map_int(dir, ~ get_filesize(.x, directories))) %>% 
+  select(-c(subdirs, size_direct))
+
+directories
+```
+
+## Questions
+
+1)  Which directories have a size of at most 100000? Compute the sum of those dirs.
+
+```{r}
+directories %>% 
+  filter(size <= 100000) %>% 
+  summarise(size_total = sum(size))
+```
+
+2)  
+
+-   Return 30000000 - the available space on disk.
+-   Which directories have a size of at least this difference? Of these, which is the samllest one? Return it's size.
+
+```{r}
+free_space <- 70000000 - directories$size[1]
+difference <- 30000000 - free_space 
+
+directories %>% 
+  filter(size >= difference) %>% 
+  filter(size == min(size))
 ```
 
 ## Concepts
 
-reduce / accumulate and recursion
+-   reduce / accumulate and recursion
+-   Bad:
+    -   Stores redundant info (immedite subdirectories + full filepath)
+    -   Does not scale well since it needlessly computes filesize for every directory from scratch.
+-   Better: Create a nested data structure, then iterate once recursively, using a reducer or function, to compute filesize.
