@@ -1,0 +1,122 @@
+---
+title: "Advent of Code 2022 - Day 08"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Dependencies
+
+```{r}
+if(!"pacman" %in% installed.packages()) install.packages("pacman") 
+pacman::p_load(tidyverse, here)
+```
+
+## Read Data
+
+```{r}
+grid <- read_csv(here("data", "08.txt"),
+         col_names = "pattern") %>% 
+  pull("pattern") %>% 
+  str_split("") %>% 
+  map(as.integer) %>% 
+  do.call(rbind, .) %>% 
+  as.data.frame() %>% 
+  as_tibble()
+
+grid
+```
+
+## Test Data
+
+```{r}
+grid <- read_csv("30373
+25512
+65332
+33549
+35390",
+         col_names = "pattern") %>% 
+  pull("pattern") %>% 
+  str_split("") %>% 
+  map(as.integer) %>% 
+  do.call(rbind, .) %>% 
+  as.data.frame() %>% 
+  as_tibble()
+```
+
+-   map: data as input, applies function to each element in data
+
+-   do.call: function as input, applies all elements in data as arguments to function
+
+## Wrangle Data
+
+```{r}
+test_vec <-   grid %>% pull(V1)
+
+get_all_visibles <- function(df, from = c("top", "bottom", "left", "right")) {
+  
+  get_visibles <- function(vec) {
+    reduce(vec, function(x, y) {
+      clean <- x[!is.na(x)]
+      if(y > clean[length(clean)]) return(append(x, y))
+      return(append(x, NA))
+    })
+  }
+  
+  get_visibles_from <- function(df, direction) {
+    if(direction == "bottom") df <- map_df(df, rev)
+    if(direction == "left") df <- df %>% t() %>% as_tibble()
+    if(direction == "right") df <- df %>% t() %>% as_tibble() %>% map_df(rev)
+    
+    visibles <- map_df(df, get_visibles)
+    
+    if(direction == "bottom") visibles <- map_df(visibles, rev)
+    if(direction == "left") visibles <- visibles %>% t() %>% as_tibble()
+    if(direction == "right") visibles <- visibles %>% map_df(rev) %>% t() %>% as_tibble()
+
+    return(visibles)
+  }
+  
+  visibles <- map(from, ~ get_visibles_from(df, .x))
+  
+  pmap_df(visibles, function(top, bottom, left, right) {
+    pmap_int(list(top, bottom, left, right), function(vec1, vec2, vec3, vec4) {
+    if(!is.na(vec1)) return(vec1) 
+    if(!is.na(vec2)) return(vec2) 
+    if(!is.na(vec3)) return(vec3) 
+    if(!is.na(vec4)) return(vec4)
+    return(NA)
+    })
+  })
+}
+
+grid %>% 
+  get_all_visibles() %>% 
+  map_int(~ sum(!is.na(.x))) %>% 
+  sum()
+```
+
+## Real Data
+```{r}
+grid <- read_csv(here("data", "08.txt"),
+                 col_names = "pattern") %>% 
+  pull("pattern") %>% 
+  str_split("") %>% 
+  map(as.integer) %>% 
+  do.call(rbind, .) %>% 
+  as.data.frame() %>% 
+  as_tibble()
+```
+
+## Questions
+
+1
+```{r}
+grid %>% 
+  get_all_visibles() %>% 
+  map_int(~ sum(!is.na(.x))) %>% 
+  sum()
+```
+
+
