@@ -13,21 +13,6 @@ if(!"pacman" %in% installed.packages()) install.packages("pacman")
 pacman::p_load(tidyverse, here)
 ```
 
-## Read Data
-
-```{r}
-grid <- read_csv(here("data", "08.txt"),
-         col_names = "pattern") %>% 
-  pull("pattern") %>% 
-  str_split("") %>% 
-  map(as.integer) %>% 
-  do.call(rbind, .) %>% 
-  as.data.frame() %>% 
-  as_tibble()
-
-grid
-```
-
 ## Test Data
 
 ```{r}
@@ -45,15 +30,17 @@ grid <- read_csv("30373
   as_tibble()
 ```
 
+Reminder:
+
 -   map: data as input, applies function to each element in data
 
--   do.call: function as input, applies all elements in data as arguments to function
+-   do.call: function as input, supplies all elements in data as arguments to function
 
 ## Wrangle Data
 
-```{r}
-test_vec <-   grid %>% pull(V1)
+Create the function
 
+```{r}
 get_all_visibles <- function(df, from = c("top", "bottom", "left", "right")) {
   
   get_visibles <- function(vec) {
@@ -81,16 +68,20 @@ get_all_visibles <- function(df, from = c("top", "bottom", "left", "right")) {
   visibles <- map(from, ~ get_visibles_from(df, .x))
   
   pmap_df(visibles, function(top, bottom, left, right) {
-    pmap_int(list(top, bottom, left, right), function(vec1, vec2, vec3, vec4) {
-    if(!is.na(vec1)) return(vec1) 
-    if(!is.na(vec2)) return(vec2) 
-    if(!is.na(vec3)) return(vec3) 
-    if(!is.na(vec4)) return(vec4)
+    pmap_int(list(top, bottom, left, right), function(el1, el2, el3, el4) {
+    if(!is.na(el1)) return(el1) 
+    if(!is.na(el2)) return(el2) 
+    if(!is.na(el3)) return(el3) 
+    if(!is.na(el4)) return(el4)
     return(NA)
     })
   })
 }
+```
 
+Apply the function
+
+```{r}
 grid %>% 
   get_all_visibles() %>% 
   map_int(~ sum(!is.na(.x))) %>% 
@@ -98,6 +89,7 @@ grid %>%
 ```
 
 ## Real Data
+
 ```{r}
 grid <- read_csv(here("data", "08.txt"),
                  col_names = "pattern") %>% 
@@ -109,14 +101,11 @@ grid <- read_csv(here("data", "08.txt"),
   as_tibble()
 ```
 
-## Questions
+Question 1:
 
-1
 ```{r}
 grid %>% 
   get_all_visibles() %>% 
   map_int(~ sum(!is.na(.x))) %>% 
   sum()
 ```
-
-
