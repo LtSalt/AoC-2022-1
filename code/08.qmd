@@ -10,13 +10,15 @@ editor_options:
 
 ```{r}
 if(!"pacman" %in% installed.packages()) install.packages("pacman") 
-pacman::p_load(tidyverse, here)
+pacman::p_load(tidyverse, here, rlist)
 ```
 
-## Test Data
+## Quetion 1
+
+### Test Data
 
 ```{r}
-grid <- read_csv("30373
+grid_test <- read_csv("30373
 25512
 65332
 33549
@@ -28,6 +30,8 @@ grid <- read_csv("30373
   do.call(rbind, .) %>% 
   as.data.frame() %>% 
   as_tibble()
+
+grid_test
 ```
 
 Reminder:
@@ -36,7 +40,7 @@ Reminder:
 
 -   do.call: function as input, supplies all elements in data as arguments to function
 
-## Wrangle Data
+### Wrangle Data
 
 Create the function
 
@@ -51,7 +55,7 @@ get_all_visibles <- function(df, from = c("top", "bottom", "left", "right")) {
     })
   }
   
-  get_visibles_from <- function(df, direction) {
+  get_visibles_from <- function(df, direction = "top") {
     if(direction == "bottom") df <- map_df(df, rev)
     if(direction == "left") df <- df %>% t() %>% as_tibble()
     if(direction == "right") df <- df %>% t() %>% as_tibble() %>% map_df(rev)
@@ -82,13 +86,13 @@ get_all_visibles <- function(df, from = c("top", "bottom", "left", "right")) {
 Apply the function
 
 ```{r}
-grid %>% 
+grid_test %>% 
   get_all_visibles() %>% 
   map_int(~ sum(!is.na(.x))) %>% 
   sum()
 ```
 
-## Real Data
+### With Real Data
 
 ```{r}
 grid <- read_csv(here("data", "08.txt"),
@@ -101,11 +105,92 @@ grid <- read_csv(here("data", "08.txt"),
   as_tibble()
 ```
 
-Question 1:
-
 ```{r}
 grid %>% 
   get_all_visibles() %>% 
   map_int(~ sum(!is.na(.x))) %>% 
   sum()
+```
+
+## Question 2
+
+for-loop practice!
+
+functions
+
+```{r}
+table_scores <- function(df) {
+ 
+  get_scores <- function(vec) {
+    scores <- vector(mode = "integer", length = length(vec))
+    
+    for(i in seq_along(vec)) {
+      el <- vec[i]
+      score <- 0
+      
+      for(j in (1 + i):length(vec)) {
+        if(i == length(vec)) break
+        score <- score + 1
+        if(j > length(vec)) break
+        if(vec[j] == el | vec[j] > el) break
+      }
+      scores[[i]] <- score
+    }
+    return(scores)
+  }
+  
+  map_df(df, get_scores)
+}
+
+get_transformations <- function(df, to = c("top", "bottom", "left", "right")) {
+  
+  transformations <- map(to, function(x) {
+    if(x == "top") return(df)
+    if(x == "bottom")return(map_df(df, rev))
+    if(x == "left") return(df %>% t() %>% as_tibble())
+    if(x == "right") return(df %>% t() %>% as_tibble() %>% map_df(rev))
+  })
+  return(transformations)
+}
+
+reverse_transformations <- function(list_of_dfs, original, 
+                                    from = c("top", "bottom", "left", "right")) {
+  
+  map2(list_of_dfs, from, function(x, y) {
+    if(y == "top") {
+      return(x)
+      }
+    if(y == "bottom") {
+      return(map_df(x, rev))
+    }
+    if(y == "left") {
+      return(x %>% t() %>% as_tibble())
+    }
+    if(y == "right") {
+      return(map(x,rev) %>% as_tibble() %>% t())
+    }
+  })
+}
+```
+
+Application
+
+```{r}
+# Test
+grid_test %>% 
+  get_transformations() %>% 
+  map(~ table_scores(.x)) %>% 
+  reverse_transformations(original = grid_test) %>% 
+  reduce(~ .x * .y) %>% 
+  map_dbl(max) %>% 
+  max() # 8
+
+# Data
+grid %>% 
+  get_transformations() %>% 
+  map(~ table_scores(.x)) %>% 
+  reverse_transformations(original = grid_test) %>% 
+  reduce(~ .x * .y) %>% 
+  map_dbl(max) %>% 
+  max() # 519064
 ```
