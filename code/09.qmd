@@ -1,0 +1,162 @@
+---
+title: "09 neu"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Dependencies
+
+```{r}
+if(!"pacman" %in% installed.packages()) install.packages("pacman")
+pacman::p_load(tidyverse, here)
+```
+
+## Test
+
+### Data
+
+```{r}
+test_data <- read_table(
+  "R 4
+  U 4
+  L 3
+  D 1
+  R 4
+  D 1
+  L 5
+  R 2",
+  col_names = c("to", "by")) 
+
+test_data
+```
+
+### Wrangle
+
+```{r}
+coords_rel <- test_data %>% 
+  mutate(dim = ifelse(to %in% c("L", "R"), "x", "y"),
+         by = ifelse(to %in% c("L", "D"), -by, by)) %>% 
+  summarise(x = ifelse(dim == "x", by, 0),
+            y = ifelse(dim == "y", by, 0))
+
+coords_rel
+```
+
+```{r}
+coords_abs <- coords_rel %>% 
+  add_row(x = 1, y = 1, .before = 1) %>%
+  mutate(across(everything(), ~ accumulate(.x, sum)))
+
+coords_abs
+```
+
+```{r}
+moves <- coords_abs %>% 
+  mutate(across(everything(), ~ accumulate(.x, ~ last(.x):.y))) %>%
+  unnest(cols = c(x, y)) %>% 
+  filter(!(lag(x) == x & lag(y) == y) | row_number() == 1)
+
+moves
+```
+
+```{r}
+get_tail_positions <- function(df) {
+  acc <- as.list(rep(NA, nrow(df)))
+  acc[[1]] <- df[1, ]
+  
+  for(i in 2:(nrow(df) - 1)) {
+    diff_abs <- abs(df[i + 1, ] - last(acc[!is.na(acc)]))
+      
+    if(any(diff_abs == 2)) {
+      acc[[i]] <- df[i, ]
+    }
+  }
+  bind_rows(acc[!is.na(acc)])
+}
+
+get_tail_positions(moves) %>% 
+  distinct() %>% 
+  nrow()
+```
+
+## Input Data
+
+```{r}
+directions <- read_table(here("data", "09.txt"),
+  col_names = c("to", "by")) 
+directions
+```
+
+```{r}
+coords_rel <- directions %>% 
+  mutate(dim = ifelse(to %in% c("L", "R"), "x", "y"),
+         by = ifelse(to %in% c("L", "D"), -by, by)) %>% 
+  summarise(x = ifelse(dim == "x", by, 0),
+            y = ifelse(dim == "y", by, 0))
+
+coords_rel
+```
+
+```{r}
+coords_abs <- coords_rel %>% 
+  add_row(x = 1, y = 1, .before = 1) %>%
+  mutate(across(everything(), ~ accumulate(.x, sum)))
+
+coords_abs
+```
+
+```{r}
+crossed <- coords_abs %>% 
+  mutate(across(everything(), ~ accumulate(.x, ~ last(.x):.y))) %>%
+  unnest(cols = c(x, y)) %>% 
+  filter(!(lag(x) == x & lag(y) == y) | row_number() == 1)
+
+crossed
+```
+
+```{r}
+get_tail_positions(crossed) %>% 
+  distinct() %>% 
+  nrow()
+```
+
+## Part 2
+
+UNDER DEVELOPMENT
+
+```{r}
+test_data2 <- read_table(
+"R 5
+U 8
+L 8
+D 3
+R 17
+D 10
+L 25
+U 20",
+col_names = c("to", "by"))
+
+test_data2
+```
+
+```{r}
+get_tail_positions <- function(df, distance) {
+  acc <- as.list(rep(NA, nrow(df)))
+  acc[[1]] <- df[1, ]
+  
+  for(i in 2:(nrow(df) - 1)) {
+    diff_abs <- abs(df[i + 1, ] - last(acc[!is.na(acc)]))
+      
+    if(any(diff_abs == distance)) {
+      acc[[i]] <- df[i, ]
+    }
+  }
+  bind_rows(acc[!is.na(acc)])
+}
+
+get_tail_positions(crossed, 9) %>% 
+  distinct() %>% 
+  nrow()
+```
