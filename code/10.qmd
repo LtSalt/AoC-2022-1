@@ -1,0 +1,141 @@
+---
+title: "Advent of Code 2022 - Day 10"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+Dependencies
+
+```{r}
+if(!"pacman" %in% installed.packages()) install.packages("pacman")
+pacman::p_load(tidyverse, here)
+```
+
+# Part 1
+
+## Test Data
+
+### Load
+
+```{r}
+#| warning: false
+
+test <- read_table(here("data", "10-test.txt"),
+                   col_names = c("cmd", "add"))
+test
+```
+
+### Wrangle
+
+```{r}
+values <- function(x, y) {
+  if(y == 0) return(last(x))
+  rep(sum(last(x), y), 2)
+}
+
+test_cycles <- test %>% 
+  mutate(add = ifelse(is.na(add), 0, add)) %>% 
+  summarise(value = accumulate(add, .init = c(1, 1), values)) %>% # Bug: was, wenn noop am Anfang?
+  unnest(cols = value) # zu viele Werte am Ende
+
+test_cycles
+```
+
+```{r}
+values <- function(x, y) {
+  if(y == 0) return(last(x))
+  rep(sum(last(x), y), 2)
+}
+
+commands <- test %>% 
+  mutate(add = ifelse(is.na(add), 0, add),
+         current = ifelse(row_number() == 1, 1, lag(add))) %>% 
+  summarise(cmd, 
+            current = accumulate(current, sum))
+
+commands
+```
+
+```{r}
+cycles <- commands %>% 
+  mutate(times = ifelse(cmd == "noop", 1, 2)) %>% 
+  uncount(times) %>% 
+  mutate(cycle = row_number()) %>% 
+  select(cycle, value = current)
+
+cycles
+```
+
+```{r}
+test_cycles %>% 
+  mutate(row_number = row_number()) %>% 
+  filter(row_number %% 40 == 20) %>% 
+  summarise(signal_strength = value * row_number) %>% 
+  sum()
+```
+
+## Puzzle Input
+
+### Load
+
+```{r}
+#| warning: false
+
+input <- read_table(here("data", "10.txt"),
+                   col_names = c("cmd", "add"))
+```
+
+## Wrangle
+
+```{r}
+cycles <- input %>% 
+  mutate(add = ifelse(is.na(add), 0, add)) %>% 
+  summarise(value = accumulate(add, .init = c(1, 1), values)) %>% 
+  unnest(cols = value)
+
+cycles %>% 
+  mutate(row_number = row_number()) %>% 
+  filter(row_number %% 40 == 20) %>% 
+  summarise(signal_strength = value * row_number) %>% 
+  sum()
+```
+
+# Part 2
+
+UNDER DEVELOPMENT
+
+-   Rotation
+-   Reduce
+-   keep track of two values?
+
+```{r}
+pick <- function(value, i, length) {
+  vec <- vector("integer", length)
+  
+  if(value >= 2) {
+    vec[seq(value - 1, value + 1)] <- 1L
+  } 
+  else if(value == 1) {
+    vec[c(value, value + 1)] <- 1L
+  }
+  else {
+    vec[value + 1] <- 1L
+  } 
+  
+  vec[[i]]
+}
+
+test_cycles %>% 
+  slice(-)
+  mutate(value = value + 1,
+         slot = ceiling(row_number() / 40))
+
+         pattern = imap_int(value, ~ pick(.x, .y, nrow(test_cycles)))) %>% 
+  summarise(pattern = ifelse(pattern == 0, ".", "#"),
+            slot = ceiling(row_number() / 40)) %>% view()
+  pivot_wider(names_from = slot, values_from = pattern)
+  
+  group_by(slot = ceiling(row_number() / 40)) %>%
+```
