@@ -1,0 +1,120 @@
+---
+title: "Advent of Code 2022 - Day 11"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Dependencies
+
+```{r}
+if(!"pacman" %in% installed.packages()) install.packages("pacman")
+pacman::p_load(tidyverse, R6, here)
+```
+
+## Part 1
+
+*Concepts*
+- Regex
+- Code as data
+- (can be: Object oriented programming (encapsulated))
+
+### With Test Data
+
+Read Data
+
+```{r}
+test <- readChar(here("data", "11-test.txt"), 
+         nchars = file.info(here("data", "11-test.txt"))$size)
+
+test
+```
+
+Extract info
+
+```{r}
+patterns <- c("(?<=Starting items: ).+", "[\\*|\\+] \\w+",
+              "(?<=divisible by ).+", "(?<=If true: throw to monkey ).+",
+              "(?<=If false: throw to monkey ).+")
+
+test_monkeys <- map(patterns, ~ unlist(str_extract_all(test, .x))) %>% 
+  bind_cols() %>% 
+  rename_with(~ c("items", "modifier", "test", "true", "false")) %>% 
+  summarise(monkey = row_number(),
+            items = strsplit(items, ", ") %>% map(as.integer),
+            modifier = ifelse(modifier == "* old", "^ 2", modifier),
+            test = as.integer(test),
+            across(true:false, ~ as.integer(.x) + 1),
+            inspection = 0)
+test_monkeys
+```
+
+Calculate, using nested for loops
+
+```{r}
+keep_away <- function(monkeys, times) {
+  
+  for(x in 1:times) {
+    
+    for(i in 1:nrow(monkeys)) {
+      
+      walk(monkeys$items[[i]], function(item) {
+        
+        modified <- eval(parse(text = paste(item, monkeys$modifier[[i]])))
+        final <- floor(modified / 3)
+        
+        if(final %% monkeys$test[[i]] == 0) j <- monkeys$true[[i]]
+        else j <- monkeys$false[[i]]
+        
+        monkeys$items[[j]] <<- append(monkeys$items[[j]], final)
+        monkeys$inspection[[i]] <<- monkeys$inspection[[i]] + 1
+      })
+      
+      monkeys$items[[i]] <- list()
+    }
+  }
+  
+  monkeys
+}
+
+test_results <- monkeys %>% 
+  keep_away(20)
+
+test_results
+```
+
+```{r}
+test_results %>% 
+  arrange(desc(inspection)) %>% 
+  select(inspection) %>% 
+  slice(1:2) %>% 
+  prod()
+```
+
+TODO: Implementation with OOP
+
+### With Input Data
+
+```{r}
+input <- readChar(here("data", "11.txt"), 
+         nchars = file.info(here("data", "11.txt"))$size)
+
+monkeys <- map(patterns, ~ unlist(str_extract_all(input, .x))) %>% 
+  bind_cols() %>% 
+  rename_with(~ c("items", "modifier", "test", "true", "false")) %>% 
+  summarise(monkey = row_number(),
+            items = strsplit(items, ", ") %>% map(as.integer),
+            modifier = ifelse(modifier == "* old", "^ 2", modifier),
+            test = as.integer(test),
+            across(true:false, ~ as.integer(.x) + 1),
+            inspection = 0)
+
+monkeys %>% 
+  keep_away(20) %>% 
+  arrange(desc(inspection)) %>% 
+  select(inspection) %>% 
+  slice(1:2) %>% 
+  prod()
+```
+
