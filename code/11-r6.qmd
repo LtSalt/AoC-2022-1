@@ -1,0 +1,140 @@
+---
+title: "11-r6-2"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Dependencies
+
+```{r}
+pacman::p_load(tidyverse, here, R6, rlang)
+```
+
+## Data
+
+```{r}
+data_raw <- test <- readChar(here("data", "11-test.txt"), 
+         nchars = file.info(here("data", "11-test.txt"))$size)
+
+data_raw
+```
+
+```{r}
+patterns <- c("(?<=Starting items: ).+", "[\\*|\\+] \\w+",
+              "(?<=divisible by ).+", "(?<=If true: throw to monkey ).+",
+              "(?<=If false: throw to monkey ).+")
+
+data_processed <- map(patterns, ~ unlist(str_extract_all(data_raw, .x))) %>% 
+  bind_cols() %>% 
+  rename_with( ~ c("items", "modifier", "test_val", "pass", "fail")) %>% 
+  mutate(items = str_split(items, ", "),
+         across(test_val:fail, as.integer),
+         id = as.integer(row_number() - 1), .before = items)
+
+data_processed
+```
+
+```{r}
+pool <- data_processed %>% 
+  select(id, items) %>% 
+  unnest(cols = items) %>% 
+  summarise(item = as.integer(items),
+            owner = id)
+
+players <- data_processed %>% 
+  select(-items)
+
+pool
+players
+```
+
+## Classes
+
+Item Pool
+
+```{r}
+Pool <- R6Class("Pool", list(
+  item = NULL,
+  owner = NULL,
+  update = function(old_owner, new_vals, new_owners) {
+    self$item[self$owner == old_owner] <- new_vals
+    self$owner[self$owner == old_owner] <- new_owners
+  },
+  initialize = function(item, owner) {
+    self$item <- item
+    self$owner <- owner
+  }
+))
+```
+
+Player
+
+```{r}
+# Helper
+new_modifier <- function(modifier) {
+  
+  function(items) {
+    map_int(items, function(old) {
+      new <- eval(parse(text = paste(old, modifier)))
+      as.integer(floor(new / 3))
+    })
+  }
+}
+
+# Class
+Player <- R6Class("Player", list(
+  pool = Pool$new(pool$item, pool$owner),
+  id = NULL,
+  modify = NULL,
+  play = function() {
+    items <- self$pool$item[self$pool$owner == self$id]
+    new_vals <- self$modify(items)
+    new_owners <- ifelse(new_vals %% self$test_val == 0, 
+                         self$pass, 
+                         self$fail)
+    self$pool$update(self$id, new_vals, new_owners)
+    self$actions <- self$actions + length(items)
+  },
+  test_val = NULL,
+  pass = NULL,
+  fail = NULL,
+  actions = 0,
+  
+  initialize = function(id, modifier, test_val, pass, fail) {
+    self$id <- id
+    self$modify <- new_modifier(modifier)
+    self$test_val <- test_val
+    self$pass <- pass
+    self$fail <- fail
+  }
+))
+```
+
+## Action
+
+Create list of players
+
+```{r}
+player_objects <- players %>% 
+  pmap(Player$new)
+
+player_objects
+```
+
+Play rounds
+
+```{r}
+# Helper
+take_turns <- function(players, times) {
+  for(i in 1:times) {
+    walk(players, ~ .x$play())
+  }
+}
+
+player_objects %>% 
+  take_turns(20)
+
+player_objects
+```
